@@ -1,0 +1,147 @@
+###############################################################################
+############   PLEASE UPDATE VARIABLES ACCORDING TO YOUR NEEDS      ###########
+###############################################################################
+
+variables:
+- name: ProductTeam
+  value: EIS
+  
+- name: AppName
+  value: api-impl-template
+
+- name: ProjectPath
+  value: api-impl-template
+  
+- name: BuildArtifactName
+  value: $(AppName)-mule-application.jar
+  
+- name: TargetRepository
+  value: it-app-builds
+  
+resources:
+  repositories:
+  - repository: templates
+    type: git
+    name: IT/azdo-pipeline-templates
+
+trigger:
+  # Batch builds so that if one is running and more commits happen, wait until curent build completes
+  # then queue another build with all changes that have not yet been built
+  batch: true
+  # By default trigger only on master and dev branches
+  # TODO: uncomment include section and remove exclude section to enable the pipeline to run automatically
+  branches:
+    include:
+    - dev
+  paths:
+    include:
+    - api-impl-template/*
+stages:
+- stage: Static_Analysis
+  displayName: 'Static Analysis'
+  jobs:
+  - template: '/jobs/security-scan.yml@templates'
+  
+- stage: Build
+  # Build runs in parallel to Static_Analysis stage by default
+  dependsOn: []
+  jobs:
+  - job: Maven_Build
+    displayName: 'Maven Build'
+    pool:
+#      name: IT-Java-Canary
+      name: IT-Java
+      demands: maven
+
+    steps:
+    
+    - task: SonarQubePrepare@4
+      inputs:
+        SonarQube: 'SonarQube-Prod-DeveloperEdition'
+        scannerMode: 'Other'
+
+    - task: Maven@3
+      displayName: 'Build Code with Maven'
+      inputs:
+        mavenPomFile: '$(ProjectPath)/pom.xml'
+        goals: 'clean package'
+        options: '-DskipTests -Djar.finalName=$(AppName)-mule-application.jar'
+        publishJUnitResults: false
+        javaHomeOption: 'JDKVersion'
+        mavenVersionOption: 'Default'
+        mavenAuthenticateFeed: false
+        effectivePomSkip: false
+        sonarQubeRunAnalysis: false
+
+    - task: SonarQubePublish@4
+      inputs:
+        pollingTimeoutSec: '300'
+        
+    - task: CopyFiles@2
+      inputs:
+        SourceFolder: '$(Build.SourcesDirectory)'
+        # TODO: If you have a multi-node project, you may need to update the path of the contents section
+        #       you will also need to update the PublishPipelineArtifact task's targetPath value to be consistent
+        Contents: |
+          $(ProjectPath)/target/$(BuildArtifactName)
+        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+    # Store this artifact in Pipeline Workspace for future Stages / Jobs
+    - task: PublishPipelineArtifact@1
+      displayName: 'Store Artifact in Pipeline Workspace'
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)/$(ProjectPath)/target/$(BuildArtifactName)'
+        artifact: '$(BuildArtifactName)'
+
+- stage: package
+  dependsOn:
+  - Static_Analysis
+  - Build
+  condition: succeeded()
+  jobs:
+  - job: Package_Artifacts
+    displayName: 'Create Deploy Package'
+    pool:
+#      name: 'IT-Java-Canary'
+      name: IT-Java
+    steps:
+    # Retrieve build artifact from Pipeline Workspace from prior stage
+        
+    - task: DownloadPipelineArtifact@2
+      displayName: 'Download build artifact from Pipeline Storage'
+      inputs:
+        buildType: 'current'
+        targetPath: '$(Build.ArtifactStagingDirectory)'
+        artifact: '$(BuildArtifactName)'
+    # TODO: Add one or more CopyFiles tasks to copy all files needed for deployment into $(Build.ArtifactStagingDirectory)
+    #       These will be zipped up to create your Deployment Package
+    - task: CopyFiles@2
+      inputs:
+        SourceFolder: '$(Build.SourcesDirectory)'
+        Contents: |
+          # TODO: Update this to the path of the autodeploy profile (or other file(s) that need to be copied) in your repository
+          deploy/deploy-profile
+        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+        flattenFolders: true
+    - task: CopyFiles@2
+      inputs:
+        SourceFolder: '$(Build.SourcesDirectory)'
+        Contents: |
+          # Copy everything else in the deploy folder
+          deploy/**
+          !deploy/deploy-profile
+        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+        flattenFolders: false
+    # Creates Deployment Package
+    - task: ArchiveFiles@2
+      inputs:
+        rootFolderOrFile: '$(Build.ArtifactStagingDirectory)'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/$(AppName)-$(Build.BuildNumber).zip'
+        replaceExistingArchive: true
+    # Publishes Deployment Package to Artifactory
+    # defaults to it-app-builds repository
+    - template: '/steps/publish-deployment-package.yml@templates'
+      parameters:
+        artifactToPublish: '$(Build.ArtifactStagingDirectory)/$(AppName)-$(Build.BuildNumber).zip'

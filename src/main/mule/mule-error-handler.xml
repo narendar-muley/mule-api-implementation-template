@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:sys-bmcd-common-alert-api="http://www.mulesoft.org/schema/mule/sys-bmcd-common-alert-api" xmlns:sys-common-alert-api="http://www.mulesoft.org/schema/mule/sys-common-alert-api"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:json-logger="http://www.mulesoft.org/schema/mule/json-logger" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/json-logger http://www.mulesoft.org/schema/mule/json-logger/current/mule-json-logger.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/sys-common-alert-api http://www.mulesoft.org/schema/mule/sys-common-alert-api/current/mule-sys-common-alert-api.xsd
+http://www.mulesoft.org/schema/mule/sys-bmcd-common-alert-api http://www.mulesoft.org/schema/mule/sys-bmcd-common-alert-api/current/mule-sys-bmcd-common-alert-api.xsd">
+	<error-handler name="GlobalErrorHandler" doc:id="c9690e08-411c-4913-9bbc-801ea76726c1" >
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="74310415-221d-497e-ab59-5c814c7a9e05" >
+			<choice doc:name="Choice" doc:id="723ce0f8-8fa2-4a5d-aad6-2d4ff902cc23" >  
+				
+				<when expression='#[error.errorType.identifier contains ("TRANSFORMATION")]'>
+					<set-variable value="400" doc:name="Set Http Status 400" doc:id="3cbd05cc-241c-4b71-83aa-d7d3502f53c4" variableName="httpStatus" />
+					<set-variable value="BAD_REQUEST" doc:name="Set Code" doc:id="496a1e4a-5319-4507-95c9-46e14ad1539a" variableName="code" />
+				</when>
+				<when expression='error.errorType.identifier contains ("EXPRESSION")'>
+					<set-variable value="400" doc:name="Set Http Status 400" doc:id="1b67c5e3-a446-4b09-8b3e-6872853f9201" variableName="httpStatus" />
+					<set-variable value="BAD_REQUEST" doc:name="Set Code" doc:id="f1066093-19e1-40cf-9c2f-32c0a161faa4" variableName="code" />
+				</when>
+				<when expression='error.errorType.identifier contains ("VALIDATION")'>
+					<set-variable value="400" doc:name="Set Http Status 400" doc:id="c44d9a77-1c15-47ab-ad93-f51f5077f2bd" variableName="httpStatus" />
+					<set-variable value="BAD_REQUEST" doc:name="Set Code" doc:id="26439813-5b35-4119-85a6-0c6a4718bf08" variableName="code" />
+				</when>
+				<when expression='error.errorType.identifier contains ("STREAM_MAXIMUM_SIZE_EXCEEDED")'>
+					<set-variable value="400" doc:name="Http Status 400" doc:id="3a580bc1-e82a-4cf2-808a-fa97bb2ac687" variableName="httpStatus" />
+					<set-variable value="BAD_REQUEST" doc:name="Set Code" doc:id="a0330e74-ede5-4bfd-be3f-d84078e8dabb" variableName="code" />
+				</when>
+				<when expression='error.errorType.identifier contains ("TIMEOUT")'>
+					<set-variable value="400" doc:name="Set Http Status 400" doc:id="7cabf6e7-331d-4172-82d2-b9adc02c5359" variableName="httpStatus" />
+					<set-variable value="BAD_REQUEST" doc:name="Set Code" doc:id="e05faf96-c372-4f1a-8c32-94efcd1a935e" variableName="code" />
+				</when>
+				<when expression='error.errorType.identifier contains ("UNKNOWN")'>
+					<set-variable value="400" doc:name="Set Http Status 400" doc:id="ef25f170-1a97-482e-bbbe-d9af463512fd" variableName="httpStatus" />
+					<set-variable value="BAD_REQUEST" doc:name="Set Code" doc:id="85c6618f-6bb7-4515-8aa6-5637d9be8978" variableName="code" />
+				</when>
+				<when expression='error.errorType.identifier contains ("REDELIVERY_EXHAUSTED")'>
+					<set-variable value="408" doc:name="Set Http Status 408" doc:id="c461c149-646a-43c8-a190-cbf3f5708380" variableName="httpStatus" />
+					<set-variable value="REQUEST_TIMEOUT" doc:name="Set Code" doc:id="12a90aa7-7d32-4d96-9d6a-0f4865f5b0ef" variableName="code" />
+				</when>
+				<when expression='error.errorType.identifier contains ("CONNECTIVITY")'>
+					<set-variable value="500" doc:name="Set Http Status 500" doc:id="ad9d923c-35a5-4511-8c5c-5f2f4836fa9f" variableName="httpStatus" />
+					<set-variable value="INTERNAL_SERVER_ERROR" doc:name="Set Code" doc:id="b0a98288-5b26-4461-a77d-099fbcffd22d" variableName="code" />
+				</when>
+				<when expression='error.errorType.identifier contains ("SECURITY")'>
+					<set-variable value="401" doc:name="Http Status 401" doc:id="59e13fab-a6bf-4ccf-9ecd-6408e7dd09d3" variableName="httpStatus" />
+					<set-variable value="UNAUTHORIZED" doc:name="Set Code" doc:id="6c9e7cdc-bc88-44f4-9eac-9a8adf21a351" variableName="code" />
+				</when>
+				<when expression='error.errorType.identifier contains ("UNKNOWN")'>
+					<set-variable value="500" doc:name="Http Status 500" doc:id="c8242f55-1ba1-4af8-87c2-2a518321d2ee" variableName="httpStatus" />
+					<set-variable value="UNKNOWN_ERROR" doc:name="Set Code" doc:id="48bb2b76-a3df-42c1-8621-c87d6097dc26" variableName="code" />
+				</when>
+				<otherwise >
+					<set-variable value="500" doc:name="Set Http Status 500" doc:id="740b66f3-70d7-421a-9e64-8e4232256005" variableName="httpStatus" />
+					<set-variable value="INTERNAL_SERVER_ERROR" doc:name="Set Code" doc:id="84e33bec-ba89-4591-8086-afacbd1d5fe2" variableName="error.errorMessage" />
+				</otherwise>
+			</choice>
+			<logger level="ERROR" doc:name="Error Object with stack" doc:id="de8a36b9-f84f-44cd-ac30-45fae9440cd7" message="#[error]"/>
+			<set-payload value="#[output application/json ---
+{
+ 	errorType: error.errorType,
+ 	errorCause: error.cause,
+ 	errorDescription: error.description
+}]" doc:name="Set Payload " doc:id="36c454ae-8260-4a93-b9fe-ca506861321d" />
+		</on-error-propagate>
+	</error-handler>
+
+</mule>

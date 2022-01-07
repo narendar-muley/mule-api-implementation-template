@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:json-logger="http://www.mulesoft.org/schema/mule/json-logger"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/json-logger http://www.mulesoft.org/schema/mule/json-logger/current/mule-json-logger.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<sub-flow name="api-spec-template-impl-sub-flow" doc:id="04860a82-8702-480a-a104-6ed33b2f369e" >
+		<json-logger:logger-scope doc:name="Logger scope" doc:id="e818ba66-69ec-49ba-9a64-e00c5c1ffbc5" configurationRef="JSON_Logger_Config" scopeTracePoint="DATA_TRANSFORM_SCOPE">
+			<ee:transform doc:name="Transform Message" doc:id="11604c1c-c904-4a25-9f31-5b14e300837a" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  employeeNumber: 3785,
+  contigentWorkerNumber: 3848,
+  employeeStartDate: "2012-01-01",
+  employeeEndDate: "4712-12-31",
+  firstName: "Jane",
+  middleName: "N/A or Mike or Blank",
+  lastName: "Doe",
+  fullName: "Doe, Jane (Jane)",
+  knownAs: "N/A or David or Blank",
+  emailId: "jane.doe@bmcd.com",
+  contactNumber: "999-999-9999",
+  dateOfHire: "2012-06-12",
+  networkUserId: "string",
+  supervisorId: 12936
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		</json-logger:logger-scope>
+	</sub-flow>
+</mule>

@@ -1,0 +1,10 @@
+json:
+  logger:
+    application:
+      name: "api-spec-template"
+      version: "1.0.0"
+  
+#Reconnection strategies 
+reconnect:
+  frequency : "3000"
+  attempts: "3"

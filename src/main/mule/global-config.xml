@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:json-logger="http://www.mulesoft.org/schema/mule/json-logger" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/json-logger http://www.mulesoft.org/schema/mule/json-logger/current/mule-json-logger.xsd">
+	<global-property doc:name="Global Property" doc:id="9880d652-a5f9-46b7-93a1-36834b70ce65" name="decryption.key" value="decryptionKey" />
+	<global-property doc:name="Global Property" doc:id="27274158-9407-40ff-b026-f1b56656e68d" name="environment.name" value="DEV-1" />
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="e9db0161-8892-4d41-ae9d-ce76035c6571" file="properties/secure/api-spec-template-${environment.name}.yaml" key="${decryption.key}" />
+	<json-logger:config name="JSON_Logger_Config" doc:name="JSON Logger Config" doc:id="e4290fd5-b311-41ba-ac2d-b08294b8844d" environment="${environment.name}" disabledFields="content"/>
+	<configuration-properties doc:name="Configuration properties" doc:id="73b55f36-c441-46c4-ab4a-096a71e34334" file="properties/api-spec-template-${environment.name}.yaml" />
+	<http:listener-config name="api-spec-template-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+    <apikit:config name="api-spec-template-config" api="api-spec-template.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+</mule>

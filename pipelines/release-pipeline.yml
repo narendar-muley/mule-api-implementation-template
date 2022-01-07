@@ -1,0 +1,254 @@
+###############################################################################
+############   PLEASE UPDATE VARIABLES ACCORDING TO YOUR NEEDS      ###########
+###############################################################################
+
+#UPDATE GROUP to your business group name, make sure library group is created in AZDO
+variables:
+- group: Anypoint Platform NIMaster
+
+- name: workers
+  value: 1
+  
+- name: workerType
+  value: MICRO
+
+- name: AppName
+  value: api-impl-template
+  
+# Only provide Major version number ex: 1 or 2 etc
+- name: AppVersion
+  value: 1
+
+# UPDATE your team name    
+- name: TeamName
+  value: EIS
+
+- name: BuildsRepo
+  value: it-app-builds
+
+# UPDATE your project name  
+- name: ProjectPath
+  value: api-impl-template
+  
+############################
+# List of input parameters #
+############################
+parameters:
+
+# (Required) Value which determines whether the dev deploy stage should be included in the run of the pipeline or not.
+- name: deployToDev
+  displayName: 'Deploy to dev'
+  type: boolean
+  default: true
+
+# (Required) Value which determines whether the test deploy stage should be included in the run of the pipeline or not.
+- name: deployToTest
+  displayName: 'Deploy to test'
+  type: boolean
+  default: false
+
+# (Required) Value which determines whether the production deploy stage should be included in the run of the pipeline or not.
+- name: deployToProd
+  displayName: 'Deploy to prod'
+  type: boolean
+  default: false
+
+# Required operation type of the deployment. Equivalent of Release Jira's Deployment Type field.
+- name: operation
+  displayName: 'Operation'
+  type: string
+  values:
+  - deploy
+  - undeploy
+
+# Required number of the target tier. Equivalent of Release Jira's Deployment Tier field.
+- name: tier
+  displayName: 'Tier'
+  type: string
+  values:
+  - 1
+  - 2
+
+# The number of the build to deploy. It's required and used to reference the artifact in Artifactory's it-app-builds repository and the build in Azure DevOps.
+- name: buildNumber
+  displayName: 'Build number'
+  type: string
+
+# (Required) Version to which the build to deploy was/will be promoted. It's a reference to the artifact in Artifactory's it-app-releases repository.
+- name: releaseVersion
+  displayName: 'Release version'
+  type: string
+  
+# Provide your manager/approver name (Note: provide right name)
+# Use this list https://dev.azure.com/ni/IT/_git/azdo-pipeline-templates?path=%2Fjobs%2Frelease-pipeline%2Fapproval.yml
+- name: approver
+  displayName: 'Approver'
+  type: string
+  values:
+  - Manager FirstName LastName
+
+#########################
+# Setup of the pipeline #
+#########################
+
+resources:
+  repositories:
+  - repository: templates
+    type: git
+    name: IT/azdo-pipeline-templates
+
+# When to trigger the pipeline. None means manually triggered releases only.
+trigger: none
+
+# Name of releases created using this pipeline with an increasing counter.
+name: 'Release-$(Rev:r)'
+
+stages:
+- stage: Dev_Deploy
+  dependsOn: []
+  condition: eq(true, ${{parameters.deployToDev}})
+  jobs:
+
+  - job: Maven_Deploy
+    displayName: 'Maven Deploy'
+    pool:
+      name: IT-Java-Canary
+      demands: maven
+
+    steps:
+      - task: ArtifactoryGenericDownload@3
+        inputs:
+          connection: 'IT Artifactory'
+          specSource: 'taskConfiguration'
+          fileSpec: |
+            {
+              "files": [
+                {
+                  "pattern": "$(BuildsRepo)/$(TeamName)/$(ProjectPath)/$(ProjectPath)-${{ parameters.buildNumber }}.zip",
+                  "target": "$(Build.ArtifactStagingDirectory)/"
+                }
+              ]
+            }
+          failNoOp: true
+
+      - task: ExtractFiles@1
+        inputs:
+          archiveFilePatterns: '$(Build.ArtifactStagingDirectory)/$(TeamName)/$(ProjectPath)/$(ProjectPath)-${{ parameters.buildNumber }}.zip'
+          destinationFolder: '$(Build.ArtifactStagingDirectory)/target'
+          cleanDestinationFolder: true
+          overwriteExistingFiles: false
+
+      - task: Maven@3
+        displayName: 'Deploy Code with Maven'
+        inputs:
+          mavenPomFile: '$(ProjectPath)/pom.xml'
+          goals: 'deploy'
+          options: '-DskipTests -DmuleDeploy -Dconnected.app.clientId=$(connectedAppClientId) -Dconnected.app.clientSecret=$(connectedAppClientSecret) -Dbusiness.group.id=$(businessGroupId) -Danypoint.platform.client.id=$(anypointPlatformClientId) -Danypoint.platform.client.secret=$(anypointPlatformClientSecret) -Dcloudhub.application.name=d${{ parameters.tier }}-$(AppName)-$(AppVersion) -Denvironment.name=dev-${{ parameters.tier }} -Dworkers=$(workers) -DworkerType=$(workerType) -Ddecryption.key=$(decryptionKeyNonProd) -Dmule.artifact=$(Build.ArtifactStagingDirectory)/target/$(ProjectPath)-mule-application.jar'
+          publishJUnitResults: false
+          javaHomeOption: 'JDKVersion'
+          mavenVersionOption: 'Default'
+          mavenAuthenticateFeed: false
+          effectivePomSkip: false
+          sonarQubeRunAnalysis: false
+
+- stage: Test_Deploy
+  dependsOn: [Dev_Deploy]
+  condition: eq(true, ${{parameters.deployToTest}})
+  jobs:
+
+  - job: Maven_Deploy
+    displayName: 'Maven Deploy'
+    pool:
+      name: IT-Java-Canary
+      demands: maven
+
+    steps:
+      - task: ArtifactoryGenericDownload@3
+        inputs:
+          connection: 'IT Artifactory'
+          specSource: 'taskConfiguration'
+          fileSpec: |
+            {
+              "files": [
+                {
+                  "pattern": "$(BuildsRepo)/$(TeamName)/$(ProjectPath)/$(ProjectPath)-${{ parameters.buildNumber }}.zip",
+                  "target": "$(Build.ArtifactStagingDirectory)/"
+                }
+              ]
+            }
+          failNoOp: true
+      
+      - task: ExtractFiles@1
+        inputs:
+          archiveFilePatterns: '$(Build.ArtifactStagingDirectory)/$(TeamName)/$(ProjectPath)/$(ProjectPath)-${{ parameters.buildNumber }}.zip'
+          destinationFolder: '$(Build.ArtifactStagingDirectory)/target'
+          cleanDestinationFolder: true
+          overwriteExistingFiles: false
+
+      - task: Maven@3
+        displayName: 'Deploy Code with Maven'
+        inputs:
+          mavenPomFile: '$(ProjectPath)/pom.xml'
+          goals: 'deploy'
+          options: '-DskipTests -DmuleDeploy -Dconnected.app.clientId=$(connectedAppClientId) -Dconnected.app.clientSecret=$(connectedAppClientSecret) -Dbusiness.group.id=$(businessGroupId) -Danypoint.platform.client.id=$(anypointPlatformClientId) -Danypoint.platform.client.secret=$(anypointPlatformClientSecret) -Dcloudhub.application.name=t${{ parameters.tier }}-$(AppName)-$(AppVersion) -Denvironment.name=test-${{ parameters.tier }} -Dworkers=$(workers) -DworkerType=$(workerType) -Ddecryption.key=$(decryptionKeyNonProd) -Dmule.artifact=$(Build.ArtifactStagingDirectory)/target/$(ProjectPath)-mule-application.jar'
+          publishJUnitResults: false
+          javaHomeOption: 'JDKVersion'
+          mavenVersionOption: 'Default'
+          mavenAuthenticateFeed: false
+          effectivePomSkip: false
+          sonarQubeRunAnalysis: false
+          
+- stage: Manager_Approval
+  displayName: 'Approval'
+  condition: eq(true, ${{parameters.deployToProd}})
+  jobs:
+  - template: /jobs/release-pipeline/approval.yml@templates
+    parameters:
+      approver: ${{ parameters.approver }}
+  
+- stage: Prod_Deploy
+  dependsOn: [Manager_Approval]
+  condition: eq(true, ${{parameters.deployToProd}})
+  jobs:
+
+  - job: Maven_Deploy
+    displayName: 'Maven Deploy'
+    pool:
+      name: IT-Java-Canary
+      demands: maven
+
+    steps:
+      - task: ArtifactoryGenericDownload@3
+        inputs:
+          connection: 'IT Artifactory'
+          specSource: 'taskConfiguration'
+          fileSpec: |
+            {
+              "files": [
+                {
+                  "pattern": "$(BuildsRepo)/$(TeamName)/$(ProjectPath)/$(ProjectPath)-${{ parameters.buildNumber }}.zip",
+                  "target": "$(Build.ArtifactStagingDirectory)/"
+                }
+              ]
+            }
+          failNoOp: true
+      
+      - task: ExtractFiles@1
+        inputs:
+          archiveFilePatterns: '$(Build.ArtifactStagingDirectory)/$(TeamName)/$(ProjectPath)/$(ProjectPath)-${{ parameters.buildNumber }}.zip'
+          destinationFolder: '$(Build.ArtifactStagingDirectory)/target'
+          cleanDestinationFolder: true
+          overwriteExistingFiles: false
+
+      - task: Maven@3
+        displayName: 'Deploy Code with Maven'
+        inputs:
+          mavenPomFile: '$(ProjectPath)/pom.xml'
+          goals: 'deploy'
+          options: '-DskipTests -DmuleDeploy -Dconnected.app.clientId=$(connectedAppClientId) -Dconnected.app.clientSecret=$(connectedAppClientSecret) -Dbusiness.group.id=$(businessGroupId) -Danypoint.platform.client.id=$(anypointPlatformClientId) -Danypoint.platform.client.secret=$(anypointPlatformClientSecret) -Dcloudhub.application.name=$(AppName)-$(AppVersion) -Denvironment.name=prod -Dworkers=$(workers) -DworkerType=$(workerType) -Ddecryption.key=$(decryptionKeyProd) -Dmule.artifact=$(Build.ArtifactStagingDirectory)/target/$(ProjectPath)-mule-application.jar'
+          publishJUnitResults: false
+          javaHomeOption: 'JDKVersion'
+          mavenVersionOption: 'Default'
+          mavenAuthenticateFeed: false
+          effectivePomSkip: false
+          sonarQubeRunAnalysis: false
